@@ -3,7 +3,7 @@ POST http://localhost:8080/api/shorten
 Content-Type: application/json
 
 {
-  "long_url": "https://www.example.com/very/long/path/to/some/resource"
+  "long_url": "https://github.com/wanwanzi6"
 }
 
 ### 2. GET 短链接重定向跳转
