@@ -8,7 +8,7 @@ import (
 // 用于存储原始长链接及其对应的短码
 type URL struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	OriginalURL string    `gorm:"type:varchar(2048);not null" json:"original_url"`
+	OriginalURL string    `gorm:"type:varchar(2048);not null;uniqueIndex" json:"original_url"`
 	ShortCode   string    `gorm:"type:varchar(10);uniqueIndex" json:"short_code"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
