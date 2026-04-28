@@ -1,0 +1,45 @@
+# Go
+# Binary
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+# Go workspace
+go.work
+
+# Go vendor (if not committing vendor)
+vendor/
+
+# Build output
+bin/
+dist/
+
+# IDE
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.vsix
+
+# Windows
+Thumbs.db
+ehthumbs.db
+*.lnk
+.DS_Store
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+~*
