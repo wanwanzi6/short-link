@@ -21,33 +21,33 @@ func NewURLService(db *gorm.DB) *URLService {
 
 // ShortenURL 将长链接转换为短链接
 //
-// 流程：
-//  1. 先插入一条记录，此时 ShortCode 为空
-//  2. 从插入结果中获取自动生成的 ID
-//  3. 使用 Base62 算法将 ID 编码为短码
-//  4. 更新记录，将短码写入数据库
-//  5. 返回生成的短码
+// 核心逻辑（查询优先）：
+//  1. 先查询该长链接是否已存在
+//  2. 存在则直接返回已有的短码
+//  3. 不存在则创建新记录，生成短码后返回
 //
-// 为什么分两步而不是直接生成短码后插入？
-// - 因为我们需要等待数据库返回自增 ID
-// - 如果直接插入再查询，会多一次数据库往返
-// - CurrentCare: 使用 ID 生成短码，再 Update，这是常见做法
+// 由于 OriginalURL 字段有唯一索引，可以保证同一长链接不会重复插入
 func (s *URLService) ShortenURL(longURL string) (string, error) {
-	// 创建 URL 记录，ShortCode 初始为空
+	// 1. 先查询该长链接是否已存在
+	var existing model.URL
+	if err := s.db.Where("original_url = ?", longURL).First(&existing).Error; err == nil {
+		// 查到了，直接返回已有的短码
+		return existing.ShortCode, nil
+	}
+
+	// 2. 查不到，创建新记录
 	urlRecord := &model.URL{
 		OriginalURL: longURL,
 	}
 
-	// 插入记录到数据库，获取自动生成的 ID
 	if err := s.db.Create(urlRecord).Error; err != nil {
 		return "", err
 	}
 
-	// 使用 Base62 算法将 ID 编码为短码
-	// 例如：ID = 12345 -> ShortCode = "3d7"
+	// 3. 使用 Base62 算法将 ID 编码为短码
 	code := utils.Encode(urlRecord.ID)
 
-	// 将生成的短码更新到数据库记录中
+	// 4. 更新记录，将短码写入数据库
 	if err := s.db.Model(urlRecord).Update("short_code", code).Error; err != nil {
 		return "", err
 	}
