@@ -8,15 +8,15 @@ import (
 	"github.com/wanwanzi6/short-link/internal/service"
 )
 
-// Handler HTTP 处理器
+// URLHandler HTTP 处理器
 // 负责处理 HTTP 请求和响应
-type Handler struct {
+type URLHandler struct {
 	svc *service.URLService
 }
 
-// NewHandler 创建一个新的 Handler 实例
-func NewHandler() *Handler {
-	return &Handler{
+// NewURLHandler 创建一个新的 URLHandler 实例
+func NewURLHandler() *URLHandler {
+	return &URLHandler{
 		svc: service.NewURLService(),
 	}
 }
@@ -41,7 +41,7 @@ type ShortenResponse struct {
 //  2. 校验 URL 是否合法（不能为空）
 //  3. 调用 service 层生成短码
 //  4. 返回生成的短码
-func (h *Handler) ShortenURL(c *gin.Context) {
+func (h *URLHandler) ShortenURL(c *gin.Context) {
 	var req ShortenRequest
 
 	// 解析 JSON 请求体
@@ -86,7 +86,7 @@ func (h *Handler) ShortenURL(c *gin.Context) {
 //  2. 调用 service 层查询原始长链接
 //  3. 如果找不到，返回 404
 //  4. 如果找到，使用 302 重定向到原始 URL
-func (h *Handler) Redirect(c *gin.Context) {
+func (h *URLHandler) Redirect(c *gin.Context) {
 	// 从路由参数获取 short_code
 	shortCode := c.Param("short_code")
 	if shortCode == "" {
