@@ -8,4 +8,4 @@ Content-Type: application/json
 
 ### 2. GET 短链接重定向跳转
 # 将 <short_code> 替换为实际生成的短码，例如 3d7
-GET http://localhost:8080/<short_code>
+GET http://localhost:8080/1
