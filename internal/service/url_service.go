@@ -74,3 +74,14 @@ func (s *URLService) GetOriginalURL(shortCode string) (string, error) {
 
 	return url.OriginalURL, nil
 }
+
+// UpdateClickCount 原子自增点击数
+//
+// 使用 GORM 的原子更新方式，将指定短码的点击数 +1
+// 这种方式比先查后改更高效，且避免并发问题
+func (s *URLService) UpdateClickCount(shortCode string) error {
+	return s.db.Model(&model.URL{}).
+		Where("short_code = ?", shortCode).
+		UpdateColumn("clicks", gorm.Expr("clicks + ?", 1)).
+		Error
+}

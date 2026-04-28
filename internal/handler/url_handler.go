@@ -108,5 +108,7 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 
 	// 使用 302 重定向到原始 URL
 	// StatusFound (302) 是临时重定向，浏览器会跳转到新地址
+	// 同时增加点击数（异步更新，不阻塞重定向）
+	_ = h.svc.UpdateClickCount(shortCode)
 	c.Redirect(http.StatusFound, longURL)
 }

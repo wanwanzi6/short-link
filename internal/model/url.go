@@ -10,6 +10,7 @@ type URL struct {
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	OriginalURL string    `gorm:"type:varchar(512);not null;uniqueIndex" json:"original_url"`
 	ShortCode   string    `gorm:"type:varchar(10);uniqueIndex" json:"short_code"`
+	Clicks      int64     `gorm:"default:0" json:"clicks"`
 	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 
