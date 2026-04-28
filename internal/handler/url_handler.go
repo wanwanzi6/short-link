@@ -15,9 +15,9 @@ type URLHandler struct {
 }
 
 // NewURLHandler 创建一个新的 URLHandler 实例
-func NewURLHandler() *URLHandler {
+func NewURLHandler(svc *service.URLService) *URLHandler {
 	return &URLHandler{
-		svc: service.NewURLService(),
+		svc: svc,
 	}
 }
 

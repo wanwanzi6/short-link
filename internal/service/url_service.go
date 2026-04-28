@@ -1,7 +1,6 @@
 package service
 
 import (
-	"github.com/wanwanzi6/short-link/internal/db"
 	"github.com/wanwanzi6/short-link/internal/model"
 	"github.com/wanwanzi6/short-link/pkg/utils"
 	"gorm.io/gorm"
@@ -14,9 +13,9 @@ type URLService struct {
 }
 
 // NewURLService 创建一个新的 URLService 实例
-func NewURLService() *URLService {
+func NewURLService(db *gorm.DB) *URLService {
 	return &URLService{
-		db: db.DB,
+		db: db,
 	}
 }
 
