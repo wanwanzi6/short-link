@@ -43,3 +43,10 @@ logs/
 *.tmp
 *.temp
 ~*
+
+# Docker
+docker/mysql/data/
+*.tar
+.dockerignore
+docker-compose.override.yml
+.env
