@@ -1,30 +1,44 @@
 package service
 
 import (
+	"context"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
+
 	"github.com/wanwanzi6/short-link/internal/model"
 	"github.com/wanwanzi6/short-link/pkg/utils"
-	"gorm.io/gorm"
 )
 
-// Service URL 服务层
+// URLService URL 服务层
 // 负责处理 URL 相关的业务逻辑
 type URLService struct {
-	db *gorm.DB
+	db  *gorm.DB
+	rdb *redis.Client
 }
 
 // NewURLService 创建一个新的 URLService 实例
-func NewURLService(db *gorm.DB) *URLService {
+func NewURLService(db *gorm.DB, rdb *redis.Client) *URLService {
 	return &URLService{
-		db: db,
+		db:  db,
+		rdb: rdb,
 	}
+}
+
+// cacheKey 生成 Redis 缓存的 key
+// 格式: short:{shortCode}
+func cacheKey(shortCode string) string {
+	return "short:" + shortCode
 }
 
 // ShortenURL 将长链接转换为短链接
 //
 // 核心逻辑（查询优先）：
-//  1. 先查询该长链接是否已存在
+//  1. 先查询该长链接是否已存在（数据库）
 //  2. 存在则直接返回已有的短码
 //  3. 不存在则创建新记录，生成短码后返回
+//  4. 生成成功后同步写入 Redis
 //
 // 由于 OriginalURL 字段有唯一索引，可以保证同一长链接不会重复插入
 func (s *URLService) ShortenURL(longURL string) (string, error) {
@@ -52,25 +66,43 @@ func (s *URLService) ShortenURL(longURL string) (string, error) {
 		return "", err
 	}
 
+	// 5. 同步写入 Redis（设置 24 小时过期时间）
+	ctx := context.Background()
+	_ = s.rdb.Set(ctx, cacheKey(code), longURL, 24*time.Hour)
+
 	return code, nil
 }
 
 // GetOriginalURL 根据短码查询原始长链接
 //
-// 流程：
-//  1. 使用短码在数据库中查询对应记录
-//  2. 返回记录的原始 URL
+// 缓存策略（Cache-Aside 模式）：
+//  1. 先查 Redis 缓存
+//  2. 查不到则查数据库
+//  3. 查到后异步写入 Redis（设置 24 小时过期时间）
+//  4. 返回原始 URL
 //
-// 注意：
-//   - 如果找不到对应短码，会返回空字符串
-//   - 实际使用中可能需要区分"不存在"和"查询失败"的情况
+// 为什么异步写入？
+// - 避免阻塞响应，优先保证用户体验
 func (s *URLService) GetOriginalURL(shortCode string) (string, error) {
-	var url model.URL
+	ctx := context.Background()
 
-	// 查询 short_code 等于指定值的记录
+	// 1. 先查 Redis
+	longURL, err := s.rdb.Get(ctx, cacheKey(shortCode)).Result()
+	if err == nil {
+		// Redis 命中，直接返回
+		return longURL, nil
+	}
+
+	// 2. Redis 未命中，查数据库
+	var url model.URL
 	if err := s.db.Where("short_code = ?", shortCode).First(&url).Error; err != nil {
 		return "", err
 	}
+
+	// 3. 异步写入 Redis（不阻塞返回）
+	go func() {
+		_ = s.rdb.Set(context.Background(), cacheKey(shortCode), url.OriginalURL, 24*time.Hour)
+	}()
 
 	return url.OriginalURL, nil
 }

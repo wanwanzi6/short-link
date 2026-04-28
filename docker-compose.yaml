@@ -15,3 +15,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: shortlink-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/redis/data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

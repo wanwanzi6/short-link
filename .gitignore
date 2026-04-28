@@ -46,6 +46,7 @@ logs/
 
 # Docker
 docker/mysql/data/
+docker/redis/data/
 *.tar
 .dockerignore
 docker-compose.override.yml
