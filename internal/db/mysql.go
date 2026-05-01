@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/wanwanzi6/short-link/internal/config"
 	"github.com/wanwanzi6/short-link/internal/model"
 )
 
@@ -17,12 +18,12 @@ var DB *gorm.DB
 
 // InitDB 初始化 MySQL 数据库连接
 //
-// 连接参数说明：
-//   - 用户名: root (由 MYSQL_ROOT_PASSWORD 环境变量设置)
-//   - 密码: root123456
-//   - 主机: shortlink-db (docker-compose 服务名，Docker 网络内可解析)
-//   - 端口: 3306
-//   - 数据库名: short_link (由 MYSQL_DATABASE 环境变量创建)
+// 连接参数从 config.AppConfig 中读取：
+//   - Host: 配置中的 database.host
+//   - Port: 配置中的 database.port
+//   - User: 配置中的 database.user
+//   - Password: 配置中的 database.password
+//   - DBName: 配置中的 database.db_name
 //
 // 连接池配置：
 //   - MaxIdleConns: 10  最大空闲连接数
@@ -33,6 +34,8 @@ var DB *gorm.DB
 //   - 连接失败会记录致命日志并终止程序
 //   - 使用 gormLogger 记录 SQL 执行情况（开发环境建议开启）
 func InitDB() error {
+	cfg := config.AppConfig.Database
+
 	// DSN (Data Source Name) 格式：
 	// username:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local
 	//
@@ -40,7 +43,8 @@ func InitDB() error {
 	//   - charset=utf8mb4 支持完整 Unicode 字符（包括 emoji）
 	//   - parseTime=True 自动将时间类型解析为 time.Time
 	//   - loc=Local 使用本地时区
-	dsn := "root:root123456@tcp(127.0.0.1:3306)/short_link?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
 
 	// 配置 GORM 日志级别
 	// Silent 模式不输出任何日志

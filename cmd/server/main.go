@@ -6,12 +6,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/wanwanzi6/short-link/internal/config"
 	"github.com/wanwanzi6/short-link/internal/db"
 	"github.com/wanwanzi6/short-link/internal/handler"
 	"github.com/wanwanzi6/short-link/internal/service"
 )
 
 func main() {
+	// 0. 初始化配置（最早执行，读取 config.yaml 和环境变量）
+	if err := config.InitConfig(); err != nil {
+		log.Fatalf("Failed to initialize config: %v", err)
+	}
+
 	// 1. 初始化基础设施：连接数据库
 	if err := db.InitDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -46,7 +52,7 @@ func main() {
 	// GET /:short_code - 根据短码重定向到原始 URL
 	r.GET("/:short_code", urlHandler.Redirect)
 
-	// 5. 优雅启动：在 8080 端口启动服务
+	// 6. 优雅启动：在 8080 端口启动服务
 	addr := ":8080"
 	log.Printf("Server starting on %s", addr)
 	if err := http.ListenAndServe(addr, r); err != nil {

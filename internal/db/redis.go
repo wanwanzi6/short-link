@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/wanwanzi6/short-link/internal/config"
 )
 
 // RDB 是全局 Redis 客户端实例
@@ -14,10 +16,10 @@ var RDB *redis.Client
 
 // InitRedis 初始化 Redis 连接
 //
-// 连接参数（写死配置）：
-//   - Host: localhost:6379
-//   - Port: 6379
-//   - Password: (空)
+// 连接参数从 config.AppConfig 中读取：
+//   - Host: 配置中的 redis.host
+//   - Port: 配置中的 redis.port
+//   - Password: 配置中的 redis.password
 //   - DB: 0 (默认数据库)
 //
 // 连接池配置：
@@ -27,9 +29,11 @@ var RDB *redis.Client
 //   - ReadTimeout: 3 秒读取超时
 //   - WriteTimeout: 3 秒写入超时
 func InitRedis() error {
+	cfg := config.AppConfig.Redis
+
 	RDB = redis.NewClient(&redis.Options{
-		Addr:         "localhost:6379",
-		Password:     "",                    // 无密码
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Password:     cfg.Password,
 		DB:           0,                     // 默认数据库
 		PoolSize:     10,                    // 连接池大小
 		MinIdleConns: 5,                     // 最小空闲连接
