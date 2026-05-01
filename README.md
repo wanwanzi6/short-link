@@ -345,12 +345,6 @@ go test -bench=. -benchmem -run=none ./internal/service/...
 - 单次布隆过滤判断仅需 ~10ns，内存占用 1.44MB 可支持 100 万短码
 - 避免无效请求穿透到 Redis/数据库，节省 3.9x 的内存分配开销
 
-### 运行 Benchmark
-
-```bash
-go test -bench=Benchmark -benchmem -run=none ./internal/service/...
-```
-
 ---
 
 ## 📊 测试覆盖率
