@@ -23,11 +23,19 @@ func main() {
 		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
 
-	// 3. 建立依赖链路：实例化 service 和 handler
-	urlService := service.NewURLService(db.DB, db.RDB)
+	// 3. 初始化布隆过滤器（防止缓存穿透）
+	if err := db.InitBloomFilter(); err != nil {
+		log.Fatalf("Failed to initialize bloom filter: %v", err)
+	}
+	if err := db.WarmupBloomFilter(); err != nil {
+		log.Fatalf("Failed to warm up bloom filter: %v", err)
+	}
+
+	// 4. 建立依赖链路：实例化 service 和 handler
+	urlService := service.NewURLService(db.DB, db.RDB, db.Filter)
 	urlHandler := handler.NewURLHandler(urlService)
 
-	// 4. 配置 Gin 路由
+	// 5. 配置 Gin 路由
 	// gin.Default() 创建一个默认的 Engine，包含 Logger 和 Recovery 中间件
 	r := gin.Default()
 

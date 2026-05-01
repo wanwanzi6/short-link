@@ -3,6 +3,7 @@ module github.com/wanwanzi6/short-link
 go 1.25.6
 
 require (
+	github.com/bits-and-blooms/bloom/v3 v3.7.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/redis/go-redis/v9 v9.19.0
 	gorm.io/driver/mysql v1.6.0
@@ -11,6 +12,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.2 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
