@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/wanwanzi6/short-link/internal/response"
 	"github.com/wanwanzi6/short-link/internal/service"
 )
 
@@ -26,11 +27,6 @@ type ShortenRequest struct {
 	LongURL string `json:"long_url"`
 }
 
-// ShortenResponse 短链接生成响应结构
-type ShortenResponse struct {
-	ShortCode string `json:"short_code"`
-}
-
 // ShortenURL 处理短链接生成请求
 //
 // 请求方法：POST
@@ -47,33 +43,37 @@ func (h *URLHandler) ShortenURL(c *gin.Context) {
 	// 解析 JSON 请求体
 	// 如果解析失败或格式不对，返回 400 错误
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request: " + err.Error(),
-		})
+		resp := response.GetBadRequestResponse()
+		resp.Error = "invalid request: " + err.Error()
+		c.JSON(resp.Code(), resp)
+		response.PutBadRequestResponse(resp)
 		return
 	}
 
 	// 校验 URL 不能为空
 	if req.LongURL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "long_url cannot be empty",
-		})
+		resp := response.GetBadRequestResponse()
+		resp.Error = "long_url cannot be empty"
+		c.JSON(resp.Code(), resp)
+		response.PutBadRequestResponse(resp)
 		return
 	}
 
 	// 调用 service 层生成短码
 	code, err := h.svc.ShortenURL(req.LongURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to shorten URL: " + err.Error(),
-		})
+		resp := response.GetErrorResponse()
+		resp.Error = "failed to shorten URL: " + err.Error()
+		c.JSON(resp.Code(), resp)
+		response.PutErrorResponse(resp)
 		return
 	}
 
 	// 返回成功响应
-	c.JSON(http.StatusOK, ShortenResponse{
-		ShortCode: code,
-	})
+	resp := response.GetShortenResponse()
+	resp.ShortCode = code
+	c.JSON(resp.Code(), resp)
+	response.PutShortenResponse(resp)
 }
 
 // Redirect 处理短链接跳转请求
@@ -90,9 +90,10 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 	// 从路由参数获取 short_code
 	shortCode := c.Param("short_code")
 	if shortCode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "short_code is required",
-		})
+		resp := response.GetBadRequestResponse()
+		resp.Error = "short_code is required"
+		c.JSON(resp.Code(), resp)
+		response.PutBadRequestResponse(resp)
 		return
 	}
 
@@ -100,9 +101,10 @@ func (h *URLHandler) Redirect(c *gin.Context) {
 	longURL, err := h.svc.GetOriginalURL(shortCode)
 	if err != nil {
 		// 返回 404 Not Found
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "short code not found",
-		})
+		resp := response.GetNotFoundResponse()
+		resp.Error = "short code not found"
+		c.JSON(resp.Code(), resp)
+		response.PutNotFoundResponse(resp)
 		return
 	}
 

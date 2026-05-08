@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/wanwanzi6/short-link/internal/model"
+	"github.com/wanwanzi6/short-link/internal/response"
 	"github.com/wanwanzi6/short-link/internal/service"
 )
 
@@ -69,7 +70,7 @@ func TestShortenURL_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp ShortenResponse
+	var resp response.ShortenResponse
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.ShortCode)
