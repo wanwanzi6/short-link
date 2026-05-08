@@ -2,11 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/gin-gonic/gin"
@@ -40,7 +42,8 @@ func setupHandlerTest(t *testing.T) (*gin.Engine, *bloom.BloomFilter, *gorm.DB, 
 	})
 
 	filter := bloom.NewWithEstimates(1000, 0.01)
-	svc := service.NewURLService(db, rdb, filter)
+	cache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(10*60))
+	svc := service.NewURLService(db, rdb, filter, cache)
 	handler := NewURLHandler(svc)
 
 	// 创建 Gin 引擎，注册实际路由
@@ -51,6 +54,7 @@ func setupHandlerTest(t *testing.T) (*gin.Engine, *bloom.BloomFilter, *gorm.DB, 
 	cleanup := func() {
 		mr.Close()
 		rdb.Close()
+		cache.Close()
 	}
 
 	return r, filter, db, cleanup

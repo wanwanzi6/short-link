@@ -4,6 +4,7 @@ go 1.25.6
 
 require (
 	github.com/alicebob/miniredis/v2 v2.37.0
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/bits-and-blooms/bloom/v3 v3.7.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/redis/go-redis/v9 v9.19.0

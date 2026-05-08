@@ -29,7 +29,12 @@ func main() {
 		log.Fatalf("Failed to initialize Redis: %v", err)
 	}
 
-	// 3. 初始化布隆过滤器（防止缓存穿透）
+	// 3. 初始化本地缓存（BigCache L1）
+	if err := db.InitCache(); err != nil {
+		log.Fatalf("Failed to initialize local cache: %v", err)
+	}
+
+	// 4. 初始化布隆过滤器（防止缓存穿透）
 	if err := db.InitBloomFilter(); err != nil {
 		log.Fatalf("Failed to initialize bloom filter: %v", err)
 	}
@@ -37,11 +42,11 @@ func main() {
 		log.Fatalf("Failed to warm up bloom filter: %v", err)
 	}
 
-	// 4. 建立依赖链路：实例化 service 和 handler
-	urlService := service.NewURLService(db.DB, db.RDB, db.Filter)
+	// 5. 建立依赖链路：实例化 service 和 handler
+	urlService := service.NewURLService(db.DB, db.RDB, db.Filter, db.Cache)
 	urlHandler := handler.NewURLHandler(urlService)
 
-	// 5. 配置 Gin 路由
+	// 6. 配置 Gin 路由
 	// gin.Default() 创建一个默认的 Engine，包含 Logger 和 Recovery 中间件
 	r := gin.Default()
 
@@ -52,7 +57,7 @@ func main() {
 	// GET /:short_code - 根据短码重定向到原始 URL
 	r.GET("/:short_code", urlHandler.Redirect)
 
-	// 6. 优雅启动：在 8080 端口启动服务
+	// 7. 优雅启动：在 8080 端口启动服务
 	addr := ":8080"
 	log.Printf("Server starting on %s", addr)
 	if err := http.ListenAndServe(addr, r); err != nil {

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ type benchmarkCtx struct {
 	db     *gorm.DB
 	rdb    *redis.Client
 	filter *bloom.BloomFilter
+	cache  *bigcache.BigCache
 	mr     *miniredis.Miniredis
 }
 
@@ -46,9 +48,13 @@ func setupBenchCtx() (*benchmarkCtx, func()) {
 
 	ctx.filter = bloom.NewWithEstimates(1000000, 0.0001)
 
+	cache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(10*60))
+	ctx.cache = cache
+
 	return ctx, func() {
 		mr.Close()
 		rdb.Close()
+		cache.Close()
 	}
 }
 
@@ -173,7 +179,7 @@ func BenchmarkShortenURL_NoPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createNoPoolEngine(svc)
 
 	body := []byte(`{"long_url": "https://example.com/very/long/url/that/needs/shortening"}`)
@@ -194,7 +200,7 @@ func BenchmarkShortenURL_WithPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createPoolEngine(svc)
 
 	body := []byte(`{"long_url": "https://example.com/very/long/url/that/needs/shortening"}`)
@@ -237,7 +243,7 @@ func BenchmarkRedirect_NotFound_NoPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createNoPoolEngine(svc)
 	codes := prepareRedirectTestData(b, ctx, r)
 
@@ -258,7 +264,7 @@ func BenchmarkRedirect_NotFound_WithPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createPoolEngine(svc)
 	codes := prepareRedirectTestData(b, ctx, r)
 
@@ -279,7 +285,7 @@ func BenchmarkRedirect_CacheHit_NoPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createNoPoolEngine(svc)
 	codes := prepareRedirectTestData(b, ctx, r)
 
@@ -299,7 +305,7 @@ func BenchmarkRedirect_CacheHit_WithPool(b *testing.B) {
 	ctx, cleanup := setupBenchCtx()
 	defer cleanup()
 
-	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := service.NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createPoolEngine(svc)
 	codes := prepareRedirectTestData(b, ctx, r)
 

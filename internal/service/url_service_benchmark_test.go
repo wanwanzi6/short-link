@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,7 @@ type benchmarkContext struct {
 	db     *gorm.DB
 	rdb    *redis.Client
 	filter *bloom.BloomFilter
+	cache  *bigcache.BigCache
 	mr     *miniredis.Miniredis
 }
 
@@ -44,9 +46,13 @@ func setupBenchmarkContext() (*benchmarkContext, func()) {
 
 	ctx.filter = bloom.NewWithEstimates(1000000, 0.0001)
 
+	cache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(10*60))
+	ctx.cache = cache
+
 	return ctx, func() {
 		mr.Close()
 		rdb.Close()
+		cache.Close()
 	}
 }
 
@@ -125,7 +131,7 @@ func BenchmarkRedirectWithBloom(b *testing.B) {
 	defer cleanup()
 
 	codes := prepareBenchmarkData(ctx, true) // 添加到布隆过滤器
-	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createTestEngineWithBloom(svc)
 
 	// 预热
@@ -172,7 +178,7 @@ func BenchmarkRedirectWithoutBloom(b *testing.B) {
 	defer cleanup()
 
 	codes := prepareBenchmarkData(ctx, false) // 不添加到布隆过滤器
-	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createTestEngineWithoutBloom(svc)
 
 	// 预热
@@ -216,7 +222,7 @@ func BenchmarkRedirectCacheHit(b *testing.B) {
 	defer cleanup()
 
 	codes := prepareBenchmarkData(ctx, true)
-	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createTestEngineWithBloom(svc)
 
 	// 预热：建立 Redis 缓存
@@ -257,7 +263,7 @@ func BenchmarkRedirectMixed(b *testing.B) {
 	defer cleanup()
 
 	codes := prepareBenchmarkData(ctx, true)
-	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter)
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
 	r := createTestEngineWithBloom(svc)
 
 	// 预热
@@ -291,3 +297,74 @@ func BenchmarkRedirectMixed(b *testing.B) {
 
 	wg.Wait()
 }
+
+// BenchmarkRedirect_LocalCacheHit 测试本地缓存命中场景（L1 命中）
+//
+// 场景：热点数据在本地缓存中命中，完全绕过 Redis 网络开销
+// 预期：比 Redis 缓存命中延迟更低（纳秒级 vs 微秒级）
+func BenchmarkRedirect_LocalCacheHit(b *testing.B) {
+	ctx, cleanup := setupBenchmarkContext()
+	defer cleanup()
+
+	codes := prepareBenchmarkData(ctx, true)
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, ctx.cache)
+	r := createTestEngineWithBloom(svc)
+
+	// 预热：先走一遍完整流程，让数据写入本地缓存
+	for _, code := range codes {
+		req := httptest.NewRequest(http.MethodGet, "/"+code, nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			code := codes[randInt()%len(codes)]
+			req := httptest.NewRequest(http.MethodGet, "/"+code, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+		}
+	})
+}
+
+// BenchmarkRedirect_RedisOnlyHit 测试纯 Redis 缓存命中场景（无本地缓存）
+//
+// 场景：模拟旧架构，只有 Redis 缓存，无本地缓存层
+// 对比基准：用于和本地缓存命中场景对比 ns/op 差异
+func BenchmarkRedirect_RedisOnlyHit(b *testing.B) {
+	ctx, cleanup := setupBenchmarkContext()
+	defer cleanup()
+
+	codes := prepareBenchmarkData(ctx, true)
+	// 不传入本地缓存，模拟纯 Redis 架构
+	svc := NewURLService(ctx.db, ctx.rdb, ctx.filter, nil)
+	r := createTestEngineWithBloom(svc)
+
+	// 预热：建立 Redis 缓存
+	for _, code := range codes {
+		req := httptest.NewRequest(http.MethodGet, "/"+code, nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			code := codes[randInt()%len(codes)]
+			req := httptest.NewRequest(http.MethodGet, "/"+code, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+		}
+	})
+}
+
+func randInt() int {
+	randSrc.Lock()
+	defer randSrc.Unlock()
+	randVal++
+	return randVal
+}
+
+var randSrc sync.Mutex
+var randVal int

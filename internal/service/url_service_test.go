@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/redis/go-redis/v9"
@@ -39,12 +40,17 @@ func setupTestFilter() *bloom.BloomFilter {
 	return bloom.NewWithEstimates(1000, 0.01)
 }
 
+func setupTestCache() *bigcache.BigCache {
+	cache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(10*60))
+	return cache
+}
+
 // TestGetOriginalURL_BloomFilterReject 测试布隆过滤器拦截不存在的短码
 func TestGetOriginalURL_BloomFilterReject(t *testing.T) {
 	db := setupTestDB(t)
 	_, rdb := setupTestRedis(t)
 	filter := setupTestFilter()
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	// 布隆过滤器中不存在任何短码，"nonexistent" 会被直接拦截
 	longURL, err := svc.GetOriginalURL("nonexistent")
@@ -64,7 +70,7 @@ func TestGetOriginalURL_RedisHit(t *testing.T) {
 	rdb.Set(ctx, cacheKey("abc123"), "https://example.com", 24*time.Hour)
 	filter.Add([]byte("abc123"))
 
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	// Redis 命中，应直接返回
 	longURL, err := svc.GetOriginalURL("abc123")
@@ -86,7 +92,7 @@ func TestGetOriginalURL_DBFallback(t *testing.T) {
 	db.Create(urlRecord)
 	filter.Add([]byte("golang"))
 
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	// Redis 没有缓存，会回写到数据库
 	longURL, err := svc.GetOriginalURL("golang")
@@ -110,7 +116,7 @@ func TestShortenURL_Success(t *testing.T) {
 	db := setupTestDB(t)
 	_, rdb := setupTestRedis(t)
 	filter := setupTestFilter()
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	code, err := svc.ShortenURL("https://www.example.com/very/long/path")
 	assert.NoError(t, err)
@@ -137,7 +143,7 @@ func TestShortenURL_Duplicate(t *testing.T) {
 	db := setupTestDB(t)
 	_, rdb := setupTestRedis(t)
 	filter := setupTestFilter()
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	longURL := "https://duplicate-test.com"
 
@@ -163,7 +169,7 @@ func TestUpdateClickCount(t *testing.T) {
 	db := setupTestDB(t)
 	_, rdb := setupTestRedis(t)
 	filter := setupTestFilter()
-	svc := NewURLService(db, rdb, filter)
+	svc := NewURLService(db, rdb, filter, setupTestCache())
 
 	// 插入一条记录
 	urlRecord := &model.URL{
