@@ -180,8 +180,34 @@ db.Model(&URL{}).Where("short_code = ?", code).
 - Go 1.25+
 - Docker & Docker Compose
 - Git
+- Make (mingw32-make on Windows)
 
-### 1. 克隆项目
+### 使用 Makefile 快速启动
+
+```bash
+# 查看所有可用命令
+make help
+
+# 启动基础设施 (MySQL + Redis)
+make docker-up
+
+# 运行测试
+make test
+
+# 运行压测
+make bench
+
+# 编译并启动服务
+make build
+./bin/server
+
+# 或者直接运行 (无需编译)
+go run cmd/server/main.go
+```
+
+### 手动启动
+
+#### 1. 克隆项目
 
 ```bash
 git clone https://github.com/wanwanzi6/short-link.git
