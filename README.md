@@ -16,6 +16,7 @@
 | ⚡ 高性能缓存 | Redis 旁路缓存 + 24h TTL，异步回写降低延迟 |
 | 🛡️ 缓存穿透防护 | 布隆过滤器拦截不存在请求，保护数据库 |
 | 📊 点击追踪 | 原子自增更新点击数，无锁并发 |
+| 🔄 响应对象池 | sync.Pool 复用响应结构体，减少 GC 压力 |
 | 🐳 容器化部署 | Docker Compose 一键启动 MySQL + Redis |
 
 ---
@@ -144,7 +145,35 @@
   - 避免冷启动时大量误判
 ```
 
-### 4. 点击数原子更新
+### 4. 响应对象池 (sync.Pool)
+
+使用 `sync.Pool` 复用 HTTP 响应结构体，减少内存分配开销：
+
+```
+响应类型池化:
+  - ShortenResponse    → 生成短链接成功响应
+  - ErrorResponse      → 通用错误响应 (500)
+  - BadRequestResponse → 请求错误响应 (400)
+  - NotFoundResponse   → 未找到响应 (404)
+
+工作原理:
+  1. 首次请求 → 从 pool.Get() 获取结构体
+  2. 填充数据 → 序列化 JSON 返回
+  3. 请求结束 → pool.Put() 归还到池中
+  4. 下次请求 → 复用已存在的结构体，无需新建
+```
+
+**性能收益:**
+
+| 场景 | 优化前 | 优化后 | 提升 |
+|------|--------|--------|------|
+| 错误响应 (404) | 27 allocs/op | 22 allocs/op | **-19%** |
+| 错误响应内存 | 6,639 B/op | 6,228 B/op | **-6%** |
+| 成功响应 (200) | 206 allocs/op | 198 allocs/op | **-4%** |
+
+> 详细压测报告见 [docs/performance/response-pool-benchmark.md](docs/performance/response-pool-benchmark.md)
+
+### 5. 点击数原子更新
 
 使用 GORM 的 `UpdateColumn` + `Expr` 实现原子自增：
 
@@ -418,6 +447,8 @@ short-link/
 │   │   └── url_handler.go       # HTTP 处理器
 │   ├── model/
 │   │   └── url.go               # 数据模型
+│   ├── response/
+│   │   └── response.go          # 响应结构体 + sync.Pool 对象池
 │   └── service/
 │       └── url_service.go       # 业务逻辑
 ├── pkg/
