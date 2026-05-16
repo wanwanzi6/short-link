@@ -5,10 +5,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/wanwanzi6/short-link/internal/config"
 	"github.com/wanwanzi6/short-link/internal/db"
 	"github.com/wanwanzi6/short-link/internal/handler"
+	"github.com/wanwanzi6/short-link/internal/metrics"
+	"github.com/wanwanzi6/short-link/internal/middleware"
 	"github.com/wanwanzi6/short-link/internal/service"
 )
 
@@ -49,6 +52,13 @@ func main() {
 	// 6. 配置 Gin 路由
 	// gin.Default() 创建一个默认的 Engine，包含 Logger 和 Recovery 中间件
 	r := gin.Default()
+
+	// Prometheus metrics endpoint
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Register middlewares
+	r.Use(middleware.RateLimiter())
+	r.Use(metrics.Middleware())
 
 	// 注册路由
 	// POST /api/shorten - 生成短链接

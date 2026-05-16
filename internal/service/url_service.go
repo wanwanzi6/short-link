@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
+	"github.com/wanwanzi6/short-link/internal/metrics"
 	"github.com/wanwanzi6/short-link/internal/model"
 	"github.com/wanwanzi6/short-link/pkg/utils"
 )
@@ -111,6 +112,7 @@ func (s *URLService) GetOriginalURL(shortCode string) (string, error) {
 	// 2. L1 本地缓存查询（BigCache）
 	if s.cache != nil {
 		if entry, err := s.cache.Get(shortCode); err == nil {
+			metrics.CacheHit("local")
 			return string(entry), nil
 		}
 	}
@@ -121,6 +123,7 @@ func (s *URLService) GetOriginalURL(shortCode string) (string, error) {
 	longURL, err := s.rdb.Get(ctx, cacheKey(shortCode)).Result()
 	if err == nil {
 		// Redis 命中，回填 L1 本地缓存
+		metrics.CacheHit("redis")
 		if s.cache != nil {
 			go func() {
 				_ = s.cache.Set(shortCode, []byte(longURL))
@@ -130,6 +133,7 @@ func (s *URLService) GetOriginalURL(shortCode string) (string, error) {
 	}
 
 	// 4. Redis 未命中，查数据库
+	metrics.CacheMiss()
 	var url model.URL
 	if err := s.db.Where("short_code = ?", shortCode).First(&url).Error; err != nil {
 		return "", err

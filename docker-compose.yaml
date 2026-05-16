@@ -28,3 +28,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: shortlink-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: shortlink-app
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - GIN_MODE=release
+  #   depends_on:
+  #     - db
+  #     - redis
