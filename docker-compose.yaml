@@ -39,15 +39,24 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
 
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: shortlink-app
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     - GIN_MODE=release
-  #   depends_on:
-  #     - db
-  #     - redis
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shortlink-app
+    ports:
+      - "8080:8080"
+    environment:
+      - GIN_MODE=release
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=root123456
+      - DB_NAME=short_link
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
